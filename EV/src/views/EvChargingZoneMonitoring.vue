@@ -23,18 +23,19 @@ const STREAM_URL_MAP = {
   'B-02': import.meta.env.VITE_STREAM_B02 || '',
 }
 const getStationName = (i) => `${selectedBuilding.value === 'A동' ? 'A' : 'B'}-0${i}`
+const isReachableStream = (url) => !!url && !/localhost|127\.0\.0\.1/.test(url)
 const getStreamUrl = (station) => {
   const base = STREAM_URL_MAP[station]
-  if (!base) return DEMO_STREAM_URL[station] || DEMO_STREAM_URL['A-01']
+  if (!isReachableStream(base)) return DEMO_STREAM_URL[station] || DEMO_STREAM_URL['A-01']
   return base.replace(/\/$/, '') + '/stream'
 }
 const getPlateStreamUrl = (station) => {
   const base = STREAM_URL_MAP[station]
-  if (!base) return DEMO_PLATE_URL[station] || DEMO_PLATE_URL['A-01']
+  if (!isReachableStream(base)) return DEMO_PLATE_URL[station] || DEMO_PLATE_URL['A-01']
   return base.replace(/\/$/, '') + '/stream'
 }
 const useVideoDemo = (station) => {
-  if (STREAM_URL_MAP[station]) return null
+  if (isReachableStream(STREAM_URL_MAP[station])) return null
   return DEMO_STREAM_VIDEO[station] || DEMO_STREAM_VIDEO['A-01']
 }
 

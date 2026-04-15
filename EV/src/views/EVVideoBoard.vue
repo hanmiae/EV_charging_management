@@ -163,16 +163,20 @@ const STREAM_URL_MAP = {
   'B-02': import.meta.env.VITE_STREAM_B02 || '',
 }
 
+// A stream URL that points at localhost (left over from local dev) isn't
+// reachable from a Vercel visitor's browser — treat it as "no stream" so the
+// demo MP4 fallback kicks in instead of showing a black box.
+const isReachableStream = (url) => !!url && !/localhost|127\.0\.0\.1/.test(url)
+
 const getStreamUrl = (stationName) => {
   const base = STREAM_URL_MAP[stationName]
-  // Demo / no stream configured → serve a static CCTV still from /public/demo.
-  if (!base) return DEMO_STREAM_URL[stationName] || DEMO_STREAM_URL['A-01']
+  if (!isReachableStream(base)) return DEMO_STREAM_URL[stationName] || DEMO_STREAM_URL['A-01']
   return base.replace(/\/$/, '') + '/stream'
 }
-// Returns an MP4 clip for demo playback (rendered via <video>). Null when a
-// real MJPEG stream is configured so the MJPEG branch keeps rendering.
+// Returns an MP4 clip for demo playback (rendered via <video>). Null only
+// when a real, publicly-reachable MJPEG stream is configured.
 const useVideoDemo = (stationName) => {
-  if (STREAM_URL_MAP[stationName]) return null
+  if (isReachableStream(STREAM_URL_MAP[stationName])) return null
   return DEMO_STREAM_VIDEO[stationName] || DEMO_STREAM_VIDEO['A-01']
 }
 
