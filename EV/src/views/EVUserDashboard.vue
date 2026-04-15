@@ -50,8 +50,8 @@
           <div class="charge-flex">
             <div class="ring-gauge white-important">{{ chargePercent }}%</div>
             <div class="charge-stats">
-              <p class="kw white-important kw-size">0 kW</p>
-              <p class="min white-important min-size">{{ chargePercent >= 100 ? '충전 완료' : '예상 15분 남음' }}</p>
+              <p class="kw white-important kw-size">{{ currentKw }} kW</p>
+              <p class="min white-important min-size">{{ chargePercent >= 100 ? '충전 완료' : `예상 ${minutesLeft}분 남음` }}</p>
             </div>
           </div>
         </div>
@@ -73,12 +73,12 @@
           <div class="fee-content">
             <div class="fee-row">
               <span class="f-label white-important">이번 달 사용량</span>
-              <span class="f-value white-important f-val-size">145.2 kWh</span>
+              <span class="f-value white-important f-val-size">{{ monthlyKwh.toFixed(1) }} kWh</span>
             </div>
             <div class="f-divider"></div>
             <div class="fee-row">
               <span class="f-label white-important">예상 요금</span>
-              <span class="f-value gold-text f-val-size f-bold">24,500 원</span>
+              <span class="f-value gold-text f-val-size f-bold">{{ estimatedFee.toLocaleString() }} 원</span>
             </div>
           </div>
         </div>
@@ -177,23 +177,33 @@ const showNoti = ref(false);
 const notifications = ref([]);
 const displayBadgeCount = ref(0);
 
-const chargePercent = ref(85); 
+const chargePercent = ref(32);
+const currentKw = ref(32.0);
+const minutesLeft = ref(18);
+const monthlyKwh = ref(145.2);
+const estimatedFee = ref(24500);
 const notifiedFull = ref(false);
-const chargerTab = ref('A'); 
+const chargerTab = ref('A');
 const selectedCharger = ref('A-01');
 
 const userProfile = ref({ name: '', plateNumber: '', role: '' });
 const queueData = ref([]);
-const historyData = ref([]); 
+const historyData = ref([]);
 
-const stations = [
+// Stations are reactive — statuses cycle on the same tick as charge % so the
+// user dashboard feels alive without backend calls.
+const stations = ref([
   { id: 'A-01', b: 'A', status: 'busy', statusText: '사용 중' },
   { id: 'A-02', b: 'A', status: 'free', statusText: '여유' },
   { id: 'B-01', b: 'B', status: 'free', statusText: '여유' },
-  { id: 'B-02', b: 'B', status: 'busy', statusText: '사용 중' }, 
-];
+  { id: 'B-02', b: 'B', status: 'busy', statusText: '사용 중' },
+]);
 
-const filteredStations = computed(() => stations.filter(s => s.b === chargerTab.value));
+const filteredStations = computed(() => stations.value.filter(s => s.b === chargerTab.value));
+
+// Monthly bar chart: 12 months, current month index = real month-1; values
+// drift slightly on each tick so the bars subtly animate.
+const monthlyData = ref([120, 185, 145, 90, 60, 110, 130, 80, 150, 170, 100, 140]);
 
 const allQueueData = computed(() => {
   if (!queueData.value || queueData.value.length === 0) return [];
@@ -360,20 +370,68 @@ const openVisitReg = () => {
 };
 
 let pollingTimer = null;
+let liveTimer = null;
+
+// Smoothly grow the charge % toward 100, pulse kW, shift minutesLeft, and
+// ripple monthly bars + monthly usage / fee so the dashboard feels alive.
+const tickLive = () => {
+  // Charge percent climbs +0.8~2.2% per second, caps at 100.
+  if (chargePercent.value < 100) {
+    chargePercent.value = Math.min(100, chargePercent.value + 0.8 + Math.random() * 1.4);
+  } else if (Math.random() < 0.01) {
+    // After completion, occasionally reset to simulate a new session.
+    chargePercent.value = 20 + Math.random() * 20;
+    notifiedFull.value = false;
+  }
+
+  // kW pulses between 22~52 while charging, 0 when done.
+  if (chargePercent.value < 100) {
+    const base = 36 + Math.sin(Date.now() / 3500) * 10 + (Math.random() - 0.5) * 3;
+    currentKw.value = Number(base.toFixed(1));
+    // Est. minutes remaining drops proportionally.
+    const remaining = 100 - chargePercent.value;
+    minutesLeft.value = Math.max(1, Math.round(remaining / 4.5));
+  } else {
+    currentKw.value = 0;
+    minutesLeft.value = 0;
+  }
+
+  // Energy usage report: grows in tiny increments while charging.
+  if (chargePercent.value < 100) {
+    monthlyKwh.value = Number((monthlyKwh.value + currentKw.value / 3600).toFixed(1)); // per-second increment
+    estimatedFee.value = Math.round(monthlyKwh.value * 170); // ~170원/kWh
+  }
+
+  // Monthly bars wobble ±2 for subtle motion.
+  monthlyData.value = monthlyData.value.map(v => {
+    const next = v + (Math.random() - 0.5) * 2;
+    return Math.max(30, Math.min(210, Number(next.toFixed(0))));
+  });
+
+  // Every ~6s, flip one station's status to keep the right panel alive.
+  if (Math.random() < 0.17) {
+    const idx = Math.floor(Math.random() * stations.value.length);
+    const s = { ...stations.value[idx] };
+    if (s.status === 'busy') { s.status = 'free'; s.statusText = '여유' }
+    else                     { s.status = 'busy'; s.statusText = '사용 중' }
+    stations.value.splice(idx, 1, s);
+  }
+};
 
 onMounted(() => {
   currentTime.value = new Date().toLocaleString('ko-KR');
-  loginUserPk.value = localStorage.getItem('userPk'); 
+  loginUserPk.value = localStorage.getItem('userPk');
   refreshAllData();
-  
+
   setInterval(() => { currentTime.value = new Date().toLocaleString('ko-KR'); }, 1000);
   pollingTimer = setInterval(refreshAllData, 5000);
-  setTimeout(() => { if (chargePercent.value < 100) chargePercent.value = 100; }, 3000);
+  liveTimer    = setInterval(tickLive, 1000);
 });
 
-onUnmounted(() => { if (pollingTimer) clearInterval(pollingTimer); });
-
-const monthlyData = [120, 185, 145, 90, 60, 110, 130, 80, 150, 170, 100, 140];
+onUnmounted(() => {
+  if (pollingTimer) clearInterval(pollingTimer);
+  if (liveTimer)    clearInterval(liveTimer);
+});
 </script>
 
 <style scoped>
