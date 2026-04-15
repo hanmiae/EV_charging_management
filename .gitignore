@@ -3,6 +3,8 @@ plate_logs/
 MBCCARNUM2/
 data4/
 *.mp4
+# …but keep bundled demo clips that ship with the Vercel frontend
+!EV/public/demo/*.mp4
 
 # Build outputs
 build/
