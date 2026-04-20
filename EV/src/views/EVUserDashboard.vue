@@ -21,7 +21,6 @@
         </div>
       </div>
       <div class="header-right-group">
-        <button class="nav-pill white-important" @click="router.push('/EVUserDashboard')">대시보드</button>
         <button class="nav-pill white-important" @click="router.push('/mypage')">마이페이지</button>
         <button class="nav-pill logout white-important" @click="handleLogout">로그아웃</button>
       </div>
