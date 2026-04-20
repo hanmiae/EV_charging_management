@@ -514,26 +514,26 @@ onUnmounted(() => {
 .noti-popup-horizontal { position: absolute; top: 48px; left: -280px; width: 320px; background: rgba(13, 43, 31, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 15px; padding: 15px; z-index: 1000; }
 .noti-header-mini { font-size: 0.9rem; font-weight: 800; color: #22c55e; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
 .noti-item-row { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-.main-content { display: flex; padding: 20px 40px; height: calc(100vh - 80px); gap: 25px; }
-.panel { display: flex; flex-direction: column; gap: 10px; }
-.left-panel { flex: 0.5; } .right-panel { flex: 0.5; } .center-spacer { flex: 0.8; } 
-.glass-card { background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 20px; padding: 20px 25px 25px 25px; }
-.card-label { font-size: 1.2rem; font-weight: 800; margin-bottom: 12px; display: block; text-transform: uppercase; margin-top: 5px; }
-.bar-chart-12 { display: flex; align-items: flex-end; justify-content: space-between; height: 160px; padding-top: 30px; gap: 4px; }
+.main-content { display: flex; padding: 20px 40px; height: calc(100vh - 60px); gap: 25px; min-height: 0; box-sizing: border-box; }
+.panel { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow: hidden; }
+.left-panel { flex: 0.5; } .right-panel { flex: 0.5; } .center-spacer { flex: 0.8; }
+.glass-card { background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 20px; padding: 14px 20px 16px 20px; flex-shrink: 0; }
+.card-label { font-size: 1.05rem; font-weight: 800; margin-bottom: 8px; display: block; text-transform: uppercase; margin-top: 2px; }
+.bar-chart-12 { display: flex; align-items: flex-end; justify-content: space-between; height: 110px; padding-top: 22px; gap: 4px; }
 .bar-unit { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; min-width: 0; }
 .bar-pillar { width: 100%; max-width: 28px; background: rgba(255, 255, 255, 0.7); border-radius: 6px 6px 2px 2px; position: relative; transition: height 0.8s cubic-bezier(0.22, 1, 0.36, 1); min-height: 4px; }
 .bar-pillar.active { background: #22c55e; box-shadow: 0 0 12px rgba(34, 197, 94, 0.5); }
 .bar-pop { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 0.75rem; font-weight: 800; }
-.charger-status-container { display: flex; flex-direction: column; gap: 10px; }
-.charger-status-card { background: rgba(0,0,0,0.2); border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; gap: 16px; border: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: all 0.2s; }
+.charger-status-container { display: flex; flex-direction: column; gap: 8px; }
+.charger-status-card { background: rgba(0,0,0,0.2); border-radius: 12px; padding: 10px 16px; display: flex; align-items: center; gap: 14px; border: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: all 0.2s; }
 .charger-id { font-weight: 800; font-size: 1.2rem; }
 .charger-status-badge { font-size: 1rem; padding: 4px 14px; border-radius: 10px; margin-left: auto; }
 .charger-details { display: flex; align-items: center; gap: 20px; }
-.queue-mini-list { background: rgba(0,0,0,0.15); border-radius: 15px; padding: 18px; margin-bottom: 10px; min-height: 80px; }
+.queue-mini-list { background: rgba(0,0,0,0.15); border-radius: 15px; padding: 12px; margin-bottom: 8px; min-height: 60px; }
 .q-row { display: flex; justify-content: space-between; font-size: 1rem; margin-bottom: 6px; }
-.action-btn { width: 100%; border: none; padding: 15px; border-radius: 12px; font-weight: 800; cursor: pointer; background: #22c55e; color: #fff; font-size: 1.1rem; }
+.action-btn { width: 100%; border: none; padding: 10px; border-radius: 12px; font-weight: 800; cursor: pointer; background: #22c55e; color: #fff; font-size: 1rem; }
 .action-btn.cancel { background: #ef4444; }
-.history-fixed-3 { height: 155px; display: flex; flex-direction: column; overflow: hidden; }
+.history-fixed-3 { flex: 1 1 0 !important; min-height: 120px; display: flex; flex-direction: column; overflow: hidden; }
 .scroll-area-3 { flex: 1; overflow-y: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 1rem; }
 td { padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: center; }
