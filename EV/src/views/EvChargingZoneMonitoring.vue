@@ -226,61 +226,10 @@ const fetchWaitingList = async () => {
             />
             <div v-else class="placeholder-img">Parking View</div>
           </div>
-
-          <div class="plate-img-box">
-            <img
-              v-if="getStreamUrl(getStationName(i))"
-              :src="getStreamUrl(getStationName(i))"
-              class="plate-img"
-              alt="LIVE STREAM"
-              @error="retryImage"
-            />
-            <div v-else class="placeholder-img small">Plate View</div>
-          </div>
         </div>
       </div>
     </section>
 
-    <section class="status-section">
-      <div class="status-split-container">
-        <div class="table-area">
-          <h2 class="section-title">충전 구역 현황</h2>
-          <div class="content-card">
-            <table class="main-status-table">
-              <thead>
-                <tr>
-                  <th>충전소</th><th>차량번호</th><th>EV여부</th><th>입차시간</th><th>상태</th><th>경과시간</th><th>경고</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in chargingStatusList" :key="item.station">
-                  <td>{{ item.station }}</td>
-                  <td>{{ item.plate }}</td>
-                  <td><span :class="['ev-text', item.isEV === 'Yes' ? 'ev-yes' : 'ev-no']">{{ item.isEV }}</span></td>
-                  <td>{{ item.entryTime }}</td>
-                  <td :class="{'ev-no': item.status === '비정상'}">{{ item.status }}</td>
-                  <td>{{ item.chargeTime > 0 ? item.chargeTime + '분' : '-' }}</td>
-                  <td>
-                    <span v-if="getWarningLabel(item)" class="pill-warning">{{ getWarningLabel(item) }}</span>
-                    <span v-else class="normal-dash">-</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="alert-area">
-          <h2 class="section-title">실시간 알림</h2>
-          <div class="content-card alert-scroll">
-            <div v-for="log in alertLogs" :key="log.id" :class="['alert-item', log.type]">
-              <span class="log-time">{{ log.time }}</span>
-              <span class="log-msg">{{ log.msg }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
   </main>
 
   <button @click="toggleWaitingList" class="waiting-btn-yellow">실시간 대기열 현황 확인</button>
@@ -365,9 +314,8 @@ body { background-color: #f0f9f4; color: #1a2e25; font-family: 'Pretendard', san
 .camera-group { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
 .big-label { font-size: 1.5em !important; color: #0d2b1f; font-weight: 900; text-align: center; margin-bottom: 5px; }
 
-.parking-img-box { flex: 3 1 0; min-height: 0; overflow: hidden; background: #0d2b1f; border-radius: 12px; }
-.plate-img-box { flex: 1.2 1 0; min-height: 0; overflow: hidden; background: #0d2b1f; border-radius: 12px; }
-.parking-img, .plate-img { width: 100%; height: 100%; object-fit: contain; border-radius: 12px; background-color: black; }
+.parking-img-box { flex: 1 1 0; min-height: 0; overflow: hidden; background: #0d2b1f; border-radius: 12px; }
+.parking-img { width: 100%; height: 100%; object-fit: contain; border-radius: 12px; background-color: black; }
 
 .placeholder-img { color: rgba(255,255,255,0.8); display: flex; justify-content: center; align-items: center; height: 100%; font-weight: bold; font-size: 1.1em; }
 
