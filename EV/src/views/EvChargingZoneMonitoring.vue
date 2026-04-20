@@ -360,7 +360,7 @@ body { background-color: #f0f9f4; color: #1a2e25; font-family: 'Pretendard', san
   padding: 10px 35px 20px 35px; display: flex; flex-direction: column; gap: 5px; box-sizing: border-box; 
 }
 
-.camera-section { flex: 6.5; display: flex; justify-content: center; width: 100%; } 
+.camera-section { flex: 5.5; display: flex; justify-content: center; width: 100%; min-height: 0; }
 .camera-contents { display: flex; gap: 70px; width: 100%; max-width: 1300px;}
 .camera-group { flex: 1; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .big-label { font-size: 1.5em !important; color: #0d2b1f; font-weight: 900; text-align: center; margin-bottom: 5px; }
@@ -371,7 +371,7 @@ body { background-color: #f0f9f4; color: #1a2e25; font-family: 'Pretendard', san
 
 .placeholder-img { color: rgba(255,255,255,0.8); display: flex; justify-content: center; align-items: center; height: 100%; font-weight: bold; font-size: 1.1em; }
 
-.status-section { flex: 4; display: flex; width: 100%; justify-content: center; min-height: 0; padding-bottom: 35px; margin-top: 5px;} 
+.status-section { flex: 5; display: flex; width: 100%; justify-content: center; min-height: 220px; padding-bottom: 35px; margin-top: 5px; }
 .status-split-container { display: flex; width: 100%; gap: 25px; max-width: 1300px; }
 .table-area { flex: 6.5; display: flex; flex-direction: column; }
 .alert-area { flex: 2.5; display: flex; flex-direction: column; }
@@ -379,8 +379,8 @@ body { background-color: #f0f9f4; color: #1a2e25; font-family: 'Pretendard', san
 .content-card { flex: 1; background: #ffffff; border-radius: 10px; border: 1px solid #d1e2d9; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
 
 .main-status-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 0.95em; table-layout: fixed;}
-.main-status-table th { position: sticky; top: 0; background: #f8faf9; padding: 20px; border-bottom: 2px solid #0f766e; white-space: nowrap; }
-.main-status-table td { padding: 20px; border-bottom: 1px solid #eee; }
+.main-status-table th { position: sticky; top: 0; background: #f8faf9; padding: 12px 10px; border-bottom: 2px solid #0f766e; white-space: nowrap; font-size: 0.95em; }
+.main-status-table td { padding: 12px 10px; border-bottom: 1px solid #eee; }
 .ev-yes { color: #0f766e; font-weight: 800; }
 .ev-no { color: #c53030; font-weight: 800; }
 .status-active { color: #434747; font-weight: 600; }
