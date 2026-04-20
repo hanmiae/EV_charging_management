@@ -4,7 +4,7 @@
 
     <nav class="top-nav">
       <div class="header-main-group">
-        <h1 class="header-title">EV Charging Zone Monitoring</h1>
+        <h1 class="header-title" @click="router.push('/')" style="cursor:pointer;">EV Charging Zone Monitoring</h1>
         <div class="header-meta">
           <span class="datetime white-important">{{ currentTime }}</span>
           <div class="noti-box" @click.stop="toggleNoti">
@@ -21,6 +21,7 @@
         </div>
       </div>
       <div class="header-right-group">
+        <button class="nav-pill white-important" @click="router.push('/EVUserDashboard')">대시보드</button>
         <button class="nav-pill white-important" @click="router.push('/mypage')">마이페이지</button>
         <button class="nav-pill logout white-important" @click="handleLogout">로그아웃</button>
       </div>
