@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: ev-charging-backend
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Springboot/ev_charging_system1/Dockerfile
+    dockerContext: ./Springboot/ev_charging_system1
+    healthCheckPath: /api/dashboard
+    autoDeploy: true
+    envVars:
+      - key: PGHOST
+        fromDatabase:
+          name: ev-charging-db
+          property: host
+      - key: PGPORT
+        fromDatabase:
+          name: ev-charging-db
+          property: port
+      - key: PGDATABASE
+        fromDatabase:
+          name: ev-charging-db
+          property: database
+      - key: PGUSER
+        fromDatabase:
+          name: ev-charging-db
+          property: user
+      - key: PGPASSWORD
+        fromDatabase:
+          name: ev-charging-db
+          property: password
+      - key: EV_PLATE_LOGS_DIR
+        value: /tmp/plate_logs
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: JWT_SECRET
+        generateValue: true
+      - key: APP_CORS_ALLOWED_ORIGINS
+        value: https://ev-charging-frontend-phi.vercel.app,https://ev-charging-frontend-bhxgis5eb-hma3064-8195s-projects.vercel.app
+
+databases:
+  - name: ev-charging-db
+    plan: free
+    region: singapore
+    databaseName: ev_charging
+    user: mbc
