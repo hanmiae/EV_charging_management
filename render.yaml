@@ -4,7 +4,7 @@ services:
     runtime: docker
     plan: free
     region: singapore
-    dockerfilePath: ./Springboot/ev_charging_system1/Dockerfile
+    dockerfilePath: ./Dockerfile
     dockerContext: ./Springboot/ev_charging_system1
     healthCheckPath: /api/dashboard
     autoDeploy: true
