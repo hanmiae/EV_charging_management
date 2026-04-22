@@ -34,7 +34,7 @@ services:
         value: update
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-      - key: JWT_SECRET
+      - key: APP_JWT_SECRET
         generateValue: true
       - key: APP_CORS_ALLOWED_ORIGINS
         value: https://ev-charging-frontend-phi.vercel.app,https://ev-charging-frontend-bhxgis5eb-hma3064-8195s-projects.vercel.app
