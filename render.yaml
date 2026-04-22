@@ -3,13 +3,12 @@ services:
     name: ev-charging-backend
     runtime: docker
     plan: free
-    region: singapore                # 한국 지연 최소
+    region: singapore
     dockerfilePath: ./Springboot/ev_charging_system1/Dockerfile
     dockerContext: ./Springboot/ev_charging_system1
-    healthCheckPath: /api/dashboard  # Spring `/` 는 404, dashboard 는 항상 200
+    healthCheckPath: /api/dashboard
     autoDeploy: true
     envVars:
-      # Render Postgres 의 개별 속성 -> Dockerfile ENTRYPOINT 가 JDBC URL 조립
       - key: PGHOST
         fromDatabase:
           name: ev-charging-db
@@ -30,18 +29,20 @@ services:
         fromDatabase:
           name: ev-charging-db
           property: password
-
-      # 윈도우 전용 default 경로(C:/plate_logs) 를 Linux 안전 경로로 override
       - key: EV_PLATE_LOGS_DIR
         value: /tmp/plate_logs
-
-      # JPA 자동 스키마 동기화 (최초 부팅 시 6 테이블 생성)
       - key: SPRING_JPA_HIBERNATE_DDL_AUTO
         value: update
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: JWT_SECRET
+        generateValue: true
+      - key: APP_CORS_ALLOWED_ORIGINS
+        value: https://ev-charging-frontend-phi.vercel.app,https://ev-charging-frontend-bhxgis5eb-hma3064-8195s-projects.vercel.app
 
 databases:
   - name: ev-charging-db
-    plan: free                       # 90일 무료 (만료 후 백업 필요)
+    plan: free
     region: singapore
     databaseName: ev_charging
     user: mbc
