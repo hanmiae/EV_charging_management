@@ -48,9 +48,24 @@
             <div class="video-header">
               CCTV {{ cctv.station }} <span class="status-dot"></span>
             </div>
-            <img 
-              v-if="cctv && cctv.station"
-              :src="`http://localhost:${getPythonPort(cctv.station)}/stream`" 
+            <video
+              v-if="isDemoMode() && demoVideoForStation(cctv.station)"
+              :src="demoVideoForStation(cctv.station)"
+              class="video-img"
+              autoplay
+              muted
+              loop
+              playsinline
+            ></video>
+            <img
+              v-else-if="streamUrlForStation(cctv.station)"
+              :src="streamUrlForStation(cctv.station)"
+              class="video-img"
+              alt="LIVE VIDEO"
+            />
+            <img
+              v-else-if="cctv && cctv.imageUrl"
+              :src="mediaUrl(cctv.imageUrl)"
               class="video-img"
               alt="LIVE VIDEO"
             />
@@ -92,17 +107,9 @@
             <div class="live-indicator"><span class="blink-dot"></span>LIVE</div>
           </div>
           <div class="log-container">
-            <div class="log-item danger">
-              <span class="log-time">13:02:20</span>
-              <span class="log-msg">미등록 차량 감지 (386마 1144)</span>
-            </div>
-            <div class="log-item info">
-              <span class="log-time">13:05:01</span>
-              <span class="log-msg">63러 2314 충전 시작</span>
-            </div>
-            <div class="log-item success">
-              <span class="log-time">12:50:11</span>
-              <span class="log-msg">62서 9811 충전 완료</span>
+            <div v-for="(event, idx) in eventLog" :key="idx" class="log-item" :class="event.type">
+              <span class="log-time">{{ event.time }}</span>
+              <span class="log-msg">{{ event.msg }}</span>
             </div>
           </div>
         </div>
@@ -141,23 +148,20 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import Chart from 'chart.js/auto'
 import axios from 'axios'
-
-const getPythonPort = (stationName) => {
-  if (!stationName) return 5001;
-  const num = parseInt(stationName.replace(/[^0-9]/g, ''));
-  const isB = stationName.includes('B');
-  return 5000 + (isB ? num + 2 : num);
-}
+import { api, mediaUrl, streamUrlForStation } from '../lib/runtimeConfig'
+import { DEMO_STREAM_VIDEO, isDemoMode, makeLiveDashboard } from '../demo/mockData'
 
 const summary = ref({})
 const cctvList = ref([])
 const router = useRouter()
 const machines = ref([])
 const chartData = ref({})
+const eventLog = ref([])
 
 let chart1, chart2, chart3, miniChart
 const currentDate = ref(''); const currentTimeOnly = ref('')
 let timer
+let dashboardTimer
 
 const getStatusText = (status) => {
   const map = {
@@ -187,6 +191,8 @@ const getStatusKr = (status) => {
   return map[status] || status;
 };
 
+const demoVideoForStation = (station) => DEMO_STREAM_VIDEO[station] || ''
+
 const initCharts = () => {
   if (chart1) chart1.destroy(); if (chart2) chart2.destroy(); if (chart3) chart3.destroy(); if (miniChart) miniChart.destroy();
   const commonOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom', labels: { color: '#ffffff', font: { size: 10, weight: 'bold' } } } }, scales: { y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#ffffff' } }, x: { grid: { display: false }, ticks: { color: '#ffffff' } } } }
@@ -204,8 +210,24 @@ const initCharts = () => {
 }
 
 const fetchDashboard = async () => {
+  if (isDemoMode()) {
+    const data = makeLiveDashboard()
+    cctvList.value = data.cctv.map(item => ({
+      station: item.station,
+      plateNumber: item.plate || item.plateNumber || "인식중...",
+      status: (item.warningMsg && item.warningMsg !== "-") ? item.warningMsg : (item.status || "waiting"),
+      imageUrl: item.imageUrl
+    }))
+    summary.value = data.summary || summary.value
+    machines.value = data.machines || machines.value
+    chartData.value = data.charts || chartData.value
+    eventLog.value = Array.isArray(data.eventLog) ? data.eventLog : []
+    await nextTick()
+    if (chartData.value.powerLabels) initCharts()
+    return
+  }
   try {
-    const res = await axios.get('http://localhost:8080/api/dashboard');
+    const res = await axios.get(api('/api/dashboard'));
     const data = res.data;
 
     if (data.cctv) {
@@ -224,6 +246,7 @@ const fetchDashboard = async () => {
     summary.value = data.summary || summary.value;
     machines.value = data.machines || machines.value; 
     chartData.value = data.charts || chartData.value;
+    eventLog.value = Array.isArray(data.eventLog) ? data.eventLog : eventLog.value;
 
     await nextTick();
     if (chartData.value.powerLabels) initCharts();
@@ -236,10 +259,13 @@ onMounted(() => {
   updateTime();
   timer = setInterval(updateTime, 1000);
   fetchDashboard();
-  setInterval(fetchDashboard, 5000);
+  dashboardTimer = setInterval(fetchDashboard, 5000);
 })
 
-onUnmounted(() => { clearInterval(timer); })
+onUnmounted(() => {
+  clearInterval(timer);
+  clearInterval(dashboardTimer);
+})
 </script>
 
 <style scoped>

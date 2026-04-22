@@ -78,7 +78,7 @@
             <div class="f-divider"></div>
             <div class="fee-row">
               <span class="f-label white-important">예상 요금</span>
-              <span class="f-value gold-text f-val-size f-bold">24,500 원</span>
+              <span class="f-value gold-text f-val-size f-bold">24,684 원</span>
             </div>
           </div>
         </div>
@@ -167,16 +167,18 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import { isDemoMode, mockUserProfile, mockHistory, mockQueueWaiting, mockUserNotifications } from '../demo/mockData';
+import { api } from '../lib/runtimeConfig';
 
 const router = useRouter();
 const currentTime = ref('');
 const isQueued = ref(false);
 const loginUserPk = ref(null);
 const showNoti = ref(false);
-const notifications = ref([]);
-const displayBadgeCount = ref(0);
+const notifications = ref(isDemoMode() ? [...mockUserNotifications] : []);
+const displayBadgeCount = ref(isDemoMode() ? mockUserNotifications.length : 0);
 
-const chargePercent = ref(85); 
+const chargePercent = ref(isDemoMode() ? 100 : 85); 
 const notifiedFull = ref(false);
 const chargerTab = ref('A'); 
 const selectedCharger = ref('A-01');
@@ -200,7 +202,7 @@ const allQueueData = computed(() => {
     rank: index + 1,
     chargerId: item.stationNumber || '번호 없음', 
     status: item.status === 'waiting' ? '대기 중' : '충전 중',
-    time: '0분'
+    time: `${item.estimatedMinutes ?? 0}분`
   }));
 });
 
@@ -219,38 +221,55 @@ watch(chargePercent, (newVal) => {
 });
 
 const fetchUserProfile = async () => {
+  if (isDemoMode()) { userProfile.value = { ...mockUserProfile }; return; }
   if (!loginUserPk.value) return;
   try {
-    const res = await axios.get('http://localhost:8080/api/users/profile', { params: { userPk: loginUserPk.value } });
+    const res = await axios.get(api('/api/users/profile'), { params: { userPk: loginUserPk.value } });
     userProfile.value = res.data;
-  } catch (err) { console.error('프로필 로드 실패'); }
+  } catch (err) {
+    console.warn('[demo] profile fallback');
+    userProfile.value = { ...mockUserProfile };
+  }
 };
 
+const mapHistory = (rows) => rows.map(item => ({
+  stationNumber: item.stationNumber,
+  formattedTime: (item.startTime || '').substring(5, 16).replace('T', ' '),
+  status: item.status || '완료',
+}));
+
 const fetchHistory = async () => {
+  if (isDemoMode()) { historyData.value = mapHistory(mockHistory); return; }
   if (!loginUserPk.value) return;
   try {
-    const res = await axios.get('http://localhost:8080/api/history/my', { params: { userPk: loginUserPk.value } });
-    historyData.value = res.data.map(item => ({
-      stationNumber: item.stationNumber,
-      formattedTime: item.startTime.substring(5, 16).replace('T', ' '),
-      status: item.status || '완료'
-    }));
-  } catch (err) { console.error('기록 로드 실패'); }
+    const res = await axios.get(api('/api/history/my'), { params: { userPk: loginUserPk.value } });
+    const rows = Array.isArray(res.data) ? res.data : [];
+    historyData.value = rows.length ? mapHistory(rows) : mapHistory(mockHistory);
+  } catch (err) {
+    console.warn('[demo] history fallback');
+    historyData.value = mapHistory(mockHistory);
+  }
 };
 
 const fetchQueue = async () => {
+  if (isDemoMode()) { queueData.value = [...mockQueueWaiting]; return; }
   try {
-    const res = await axios.get('http://localhost:8080/api/queue/waiting');
-    queueData.value = res.data;
-  } catch (err) { console.error(err); }
+    const res = await axios.get(api('/api/queue/waiting'));
+    const rows = Array.isArray(res.data) ? res.data : [];
+    queueData.value = rows.length ? rows : [...mockQueueWaiting];
+  } catch (err) {
+    console.warn('[demo] queue fallback');
+    queueData.value = [...mockQueueWaiting];
+  }
 };
 
 const checkMyQueue = async () => {
+  if (isDemoMode()) { isQueued.value = false; return; }
   if (!loginUserPk.value) return;
   try {
-    const res = await axios.get('http://localhost:8080/api/queue/my', { params: { userPk: loginUserPk.value } });
+    const res = await axios.get(api('/api/queue/my'), { params: { userPk: loginUserPk.value } });
     isQueued.value = res.data;
-  } catch (err) { console.error(err); }
+  } catch (err) { isQueued.value = false; }
 };
 
 const refreshAllData = () => {
@@ -261,24 +280,41 @@ const refreshAllData = () => {
 };
 
 const joinQueue = async () => {
+  if (isDemoMode()) {
+    notifications.value.unshift(`🔔 ${selectedCharger.value} 대기 등록 완료!`);
+    displayBadgeCount.value++;
+    isQueued.value = true;
+    queueData.value = [
+      ...queueData.value,
+      { stationNumber: selectedCharger.value, status: 'waiting', estimatedMinutes: 2 }
+    ];
+    return;
+  }
   try {
     if (!loginUserPk.value) return;
-    await axios.post('http://localhost:8080/api/queue/join', {
+    await axios.post(api('/api/queue/join'), {
       userPk: Number(loginUserPk.value),
-      chargerId: selectedCharger.value 
+      chargerId: selectedCharger.value
     });
     notifications.value.unshift(`🔔 ${selectedCharger.value} 대기 등록 완료!`);
     displayBadgeCount.value++;
     isQueued.value = true;
-    setTimeout(refreshAllData, 500); 
+    setTimeout(refreshAllData, 500);
   } catch (err) { alert('등록 실패'); }
 };
 
 const cancelQueue = async () => {
+  if (isDemoMode()) {
+    notifications.value.unshift(`❌ 대기열 취소 완료`);
+    displayBadgeCount.value++;
+    isQueued.value = false;
+    queueData.value = queueData.value.filter(q => q.stationNumber !== selectedCharger.value);
+    return;
+  }
   try {
-    await axios.post('http://localhost:8080/api/queue/cancel', { 
+    await axios.post(api('/api/queue/cancel'), {
       userPk: Number(loginUserPk.value),
-      chargerId: selectedCharger.value 
+      chargerId: selectedCharger.value
     });
     notifications.value.unshift(`❌ 대기열 취소 완료`);
     displayBadgeCount.value++;
@@ -296,7 +332,9 @@ const handleLogout = () => {
 };
 
 const openVisitReg = () => {
-  alert('마이페이지로 이동하거나 팝업을 띄웁니다.');
+  notifications.value.unshift('방문차량 등록 기능은 데모에서는 준비 중입니다.');
+  displayBadgeCount.value++;
+  showNoti.value = true;
 };
 
 let pollingTimer = null;
@@ -308,12 +346,14 @@ onMounted(() => {
   
   setInterval(() => { currentTime.value = new Date().toLocaleString('ko-KR'); }, 1000);
   pollingTimer = setInterval(refreshAllData, 5000);
-  setTimeout(() => { if (chargePercent.value < 100) chargePercent.value = 100; }, 3000);
+  if (!isDemoMode()) {
+    setTimeout(() => { if (chargePercent.value < 100) chargePercent.value = 100; }, 3000);
+  }
 });
 
 onUnmounted(() => { if (pollingTimer) clearInterval(pollingTimer); });
 
-const monthlyData = [120, 185, 145, 90, 60, 110, 130, 80, 150, 170, 100, 140];
+const monthlyData = [121, 179, 155, 91, 54, 125, 133, 74, 151, 169, 104, 136];
 </script>
 
 <style scoped>

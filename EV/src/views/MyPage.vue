@@ -84,7 +84,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { mockUserProfile, isDemoMode } from '../demo/mockData'
+import { mockUserProfile } from '../demo/mockData'
 
 const router = useRouter()
 const currentTime = ref('')

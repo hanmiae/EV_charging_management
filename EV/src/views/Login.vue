@@ -59,6 +59,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import { isDemoMode, DEMO_USER, DEMO_ADMIN } from '../demo/mockData'
 
 const router = useRouter()
 const loginType = ref('user')
@@ -69,12 +70,39 @@ const adminId = ref('')
 const adminPassword = ref('')
 const isSubmitting = ref(false)
 
+// Match typed creds against the hardcoded demo accounts (user/1234, admin/1234).
+// Returns the demo response payload if it matches, or null otherwise.
+const matchDemo = (payload) => {
+  for (const demo of [DEMO_USER, DEMO_ADMIN]) {
+    if (payload.loginId === demo.loginId && payload.password === demo.password) {
+      return demo.response
+    }
+  }
+  return null
+}
+
+const persistSession = (data) => {
+  localStorage.setItem('userPk', data.userPk)
+  localStorage.setItem('loginId', data.loginId)
+  localStorage.setItem('name', data.name)
+  localStorage.setItem('role', data.role)
+  if (data.accessToken) localStorage.setItem('accessToken', data.accessToken)
+}
+
+const routeAfterLogin = (role) => {
+  if (role === 'ADMIN' || loginType.value === 'admin') {
+    router.push('/EvChargingZoneMonitoring')
+  } else {
+    router.push('/EVUserDashboard')
+  }
+}
+
 const login = async () => {
   if (isSubmitting.value) return
   isSubmitting.value = true
 
   try {
-    const loginPayload = loginType.value === 'admin' 
+    const loginPayload = loginType.value === 'admin'
       ? { loginId: adminId.value, password: adminPassword.value }
       : { loginId: loginId.value, password: password.value }
 
@@ -84,32 +112,40 @@ const login = async () => {
       return
     }
 
-    const response = await axios.post('/api/users/login', loginPayload)
+    // Demo-first path: in demo mode (default) or whenever typed creds match the
+    // built-in demo accounts, skip the backend and sign in locally. This keeps
+    // user/1234 and admin/1234 working even while the real DB is empty.
+    const demoHit = matchDemo(loginPayload)
+    if (isDemoMode() && demoHit) {
+      persistSession(demoHit)
+      alert(loginType.value === 'admin' ? '관리자 로그인 성공!' : `${demoHit.loginId}님 환영합니다!`)
+      routeAfterLogin(demoHit.role)
+      return
+    }
 
-    console.log('로그인 응답 데이터:', response.data)
-
-     if (response.status === 200) {
-
-      // ✅ 로그인 사용자 정보 저장
-      localStorage.setItem('userPk', response.data.userPk)
-      localStorage.setItem('loginId', response.data.loginId)
-      localStorage.setItem('name', response.data.name)
-      localStorage.setItem('role', response.data.role)
-
-      alert(loginType.value === 'admin' 
-        ? '관리자 로그인 성공!' 
-        : `${loginPayload.loginId}님 환영합니다!`
-      )
-
-      if (loginType.value === 'admin') {
-        router.push('/EvChargingZoneMonitoring')
-      } else {
-        router.push('/EVUserDashboard')
+    // Real backend path.
+    try {
+      const response = await axios.post('/api/users/login', loginPayload)
+      if (response.status === 200) {
+        persistSession(response.data)
+        alert(loginType.value === 'admin' ? '관리자 로그인 성공!' : `${loginPayload.loginId}님 환영합니다!`)
+        routeAfterLogin(response.data.role)
+        return
       }
+    } catch (err) {
+      // Backend unreachable / 500 / unknown user — fall back to demo creds so
+      // the portfolio demo keeps working. Real mismatches surface below.
+      if (demoHit) {
+        console.warn('[demo] login fallback')
+        persistSession(demoHit)
+        alert(loginType.value === 'admin' ? '관리자 로그인 성공!' : `${demoHit.loginId}님 환영합니다!`)
+        routeAfterLogin(demoHit.role)
+        return
+      }
+      throw err
     }
   } catch (error) {
-    // 서버 로그에 찍힌 "비밀번호가 틀렸습니다" 메시지를 알림창에 바로 띄웁니다.
-    const errorMsg = error.response?.data?.message || '로그인 실패: 정보를 확인하세요.'
+    const errorMsg = error.response?.data?.message || '로그인 실패: 아이디/비밀번호를 확인하세요.'
     alert(errorMsg)
     console.error('로그인 에러:', error)
   } finally {

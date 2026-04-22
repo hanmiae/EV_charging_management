@@ -21,8 +21,13 @@ export const mockHistory = [
 ]
 
 export const mockQueueWaiting = [
-  { stationNumber: 'A-01', status: 'waiting' },
-  { stationNumber: 'B-01', status: 'waiting' },
+  { stationNumber: 'A-01', status: 'waiting', estimatedMinutes: 2 },
+  { stationNumber: 'B-01', status: 'waiting', estimatedMinutes: 7 },
+]
+
+export const mockUserNotifications = [
+  'A-01 충전이 완료되었습니다.',
+  'B-01 대기열이 자동 갱신되었습니다.',
 ]
 
 // /api/detection/list response

@@ -1,7 +1,28 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
+import {
+  DEMO_STREAM_VIDEO,
+  DEMO_PLATE_URL,
+  mockDetectionList,
+  mockAdminQueue,
+  isDemoMode,
+} from '../demo/mockData'
+
+const getStationName = (i) => `${selectedBuilding.value === 'A동' ? 'A' : 'B'}-0${i}`
+const getParkingVideo = (station) => DEMO_STREAM_VIDEO[station] || DEMO_STREAM_VIDEO['A-01']
+const getPlateShot    = (station) => DEMO_PLATE_URL[station]    || DEMO_PLATE_URL['A-01']
+
+const retryImage = (e) => {
+  const el = e.target
+  const tries = parseInt(el.dataset.retried || '0', 10)
+  if (tries >= 3) return
+  el.dataset.retried = String(tries + 1)
+  setTimeout(() => {
+    el.src = el.src.split('?')[0] + '?t=' + Date.now()
+  }, 1500 * (tries + 1))
+}
 
 // ⏰ 실시간 날짜 및 시간 로직
 const currentDate = ref('');
@@ -56,6 +77,25 @@ const chargingStatusList = ref([]);
 const alertLogs = ref([]);
 const waitingList = ref([]);
 
+const currentStationIds = computed(() => {
+  const prefix = selectedBuilding.value === 'A동' ? 'A' : 'B'
+  return [`${prefix}-01`, `${prefix}-02`]
+})
+
+const stationItemMap = computed(() =>
+  Object.fromEntries(
+    chargingStatusList.value.map(item => [item.station, item])
+  )
+)
+
+const getStationItem = (station) => stationItemMap.value[station] || null
+
+const orderedChargingStatusList = computed(() =>
+  currentStationIds.value
+    .map(station => getStationItem(station))
+    .filter(Boolean)
+)
+
 const goToVideoBoard = () => {
   router.push('/video-board'); 
 };
@@ -70,54 +110,61 @@ const getWarningLabel = (item) => {
   return null;
 };
 
-const fetchData = async (building) => {
-  try {
-    console.log("🔥 API 호출됨", building)
+const applyDetectionData = (data, building) => {
+  const list = (data.chargingStatusList || []).filter(it => {
+    if (!building) return true;
+    const code = building.startsWith('A') ? 'A' : 'B';
+    return String(it.station || '').startsWith(code);
+  });
+  chargingStatusList.value = list;
+  const newAlerts = list
+    .filter(item => getWarningLabel(item) !== null)
+    .map(item => ({
+      id: Date.now() + item.station,
+      time: currentTime.value,
+      msg: `[${item.station}] ${getWarningLabel(item)} 감지!`,
+      type: item.status === '비정상' ? 'danger' : 'warning'
+    }));
+  alertLogs.value = [...newAlerts, ...(data.alertLogs || [])].slice(0, 10);
+};
 
-    const res = await axios.get("http://localhost:8080/api/detection/list", {
+const fetchData = async (building) => {
+  if (isDemoMode()) { applyDetectionData(mockDetectionList, building); return; }
+  try {
+    const res = await axios.get("/api/detection/list", {
       params: { building }
     });
-    
-    console.log("🔥 응답:", res.data);
-
-    chargingStatusList.value = res.data.chargingStatusList;
-    
-    // 🔔 [실시간 알림 로직] 백엔드에서 온 warningMsg를 기반으로 알림 생성
-    const newAlerts = chargingStatusList.value
-      .filter(item => getWarningLabel(item) !== null)
-      .map(item => ({
-        id: Date.now() + item.station,
-        time: currentTime.value,
-        msg: `[${item.station}] ${getWarningLabel(item)} 감지!`,
-        type: item.status === '비정상' ? 'danger' : 'warning'
-      }));
-
-    // 기존 백엔드 알림 로그와 새로 감지된 알림을 합침 (최신순 10개 유지)
-    alertLogs.value = [...newAlerts, ...(res.data.alertLogs || [])].slice(0, 10);
-
+    const list = res.data?.chargingStatusList;
+    if (!Array.isArray(list) || list.length === 0) throw new Error('empty');
+    // Backend returned rows but every plate is a placeholder ('-' / blank) —
+    // treat as "no real detections yet" and use demo data so the UI looks alive.
+    const hasRealData = list.some(it => it.plate && it.plate !== '-' && it.plate.trim() !== '');
+    if (!hasRealData) throw new Error('placeholders-only');
+    applyDetectionData(res.data, building);
   } catch (err) {
-    console.error("데이터 불러오기 실패", err);
+    console.warn('[demo] detection fallback');
+    applyDetectionData(mockDetectionList, building);
   }
 };
 
 watch(selectedBuilding, (newBuilding) => fetchData(newBuilding));
 
+const mapWaiting = (rows) => rows.map(item => ({
+  station: item.chargerId,
+  rank: item.rank,
+  plate: item.carNumber,
+  time: item.estimatedMinutes + '분',
+}));
+
 const fetchWaitingList = async () => {
-  console.log("🔥 관리자 대기열 호출됨")
-
+  if (isDemoMode()) { waitingList.value = mapWaiting(mockAdminQueue); return; }
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/queue/waiting')
-    console.log("🔥 관리자 queue:", res.data)
-
-    waitingList.value = res.data.map(item => ({
-      station: item.chargerId,          // A-01
-      rank: item.rank,                  // 순번
-      plate: item.carNumber,            // 차량번호
-      time: item.estimatedMinutes + '분' // 예상시간
-    }));
-
+    const res = await axios.get('/api/admin/queue/waiting');
+    const rows = Array.isArray(res.data) ? res.data : [];
+    waitingList.value = rows.length ? mapWaiting(rows) : mapWaiting(mockAdminQueue);
   } catch (err) {
-    console.error('관리자 대기열 불러오기 실패', err);
+    console.warn('[demo] admin-queue fallback');
+    waitingList.value = mapWaiting(mockAdminQueue);
   }
 };
 </script>
@@ -156,21 +203,45 @@ const fetchWaitingList = async () => {
             {{ selectedBuilding === 'A동' ? 'A' : 'B' }}-0{{i}}
           </span>
           <div class="parking-img-box">
-            <img 
-              v-if="chargingStatusList[i-1]?.imageUrl"
-              :src="`http://localhost:8080/images/${chargingStatusList[i-1].imageUrl.replace('/images/', '')}`"
+            <span class="live-badge"><span class="live-dot-sm"></span>LIVE</span>
+            <span class="cam-ch">CCTV {{ getStationName(i) }}</span>
+            <img
+              v-if="getStationItem(getStationName(i))?.imageUrl"
+              :src="`/images/${getStationItem(getStationName(i)).imageUrl.replace('/images/', '')}`"
               class="parking-img"
+              @error="retryImage"
             />
-            <div v-else class="placeholder-img">Parking View</div>
+            <video
+              v-else
+              :src="getParkingVideo(getStationName(i))"
+              class="parking-img"
+              autoplay muted loop playsinline
+            ></video>
+            <div class="cam-overlay" v-if="getStationItem(getStationName(i))">
+              <span class="plate-badge">{{ getStationItem(getStationName(i)).plate }}</span>
+              <span
+                class="status-badge"
+                :class="getStationItem(getStationName(i)).status === '비정상' ? 'danger' : 'normal'"
+              >
+                {{ getWarningLabel(getStationItem(getStationName(i))) || getStationItem(getStationName(i)).status }}
+              </span>
+            </div>
           </div>
 
           <div class="plate-img-box">
-            <img 
-              v-if="chargingStatusList[i-1]?.plateImageUrl"
-              :src="`http://localhost:8080/images/${chargingStatusList[i-1].plateImageUrl.replace('/images/', '')}`"
+            <img
+              v-if="getStationItem(getStationName(i))?.plateImageUrl"
+              :src="`/images/${getStationItem(getStationName(i)).plateImageUrl.replace('/images/', '')}`"
               class="plate-img"
+              @error="retryImage"
             />
-            <div v-else class="placeholder-img small">Plate View</div>
+            <img
+              v-else
+              :src="getPlateShot(getStationName(i))"
+              class="plate-img"
+              :alt="getStationName(i) + ' plate'"
+              @error="retryImage"
+            />
           </div>
         </div>
       </div>
@@ -188,7 +259,7 @@ const fetchWaitingList = async () => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in chargingStatusList" :key="item.station">
+                <tr v-for="item in orderedChargingStatusList" :key="item.station">
                   <td>{{ item.station }}</td>
                   <td>{{ item.plate }}</td>
                   <td><span :class="['ev-text', item.isEV === 'Yes' ? 'ev-yes' : 'ev-no']">{{ item.isEV }}</span></td>
@@ -300,11 +371,52 @@ body { background-color: #f0f9f4; color: #1a2e25; font-family: 'Pretendard', san
 .camera-group { flex: 1; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .big-label { font-size: 1.5em !important; color: #0d2b1f; font-weight: 900; text-align: center; margin-bottom: 5px; }
 
-.parking-img-box { flex: none !important; height: 260px !important; overflow: hidden; background: #0d2b1f; border-radius: 12px; }
+.parking-img-box {
+  flex: none !important; height: 260px !important;
+  overflow: hidden; background: #0d2b1f; border-radius: 12px;
+  position: relative;
+}
 .plate-img-box { flex: none !important; height: 120px !important; overflow: hidden; background: #0d2b1f; border-radius: 12px; }
-.parking-img, .plate-img { width: 100%; height: 100%; object-fit: contain; border-radius: 12px; background-color: black; }
+.parking-img, .plate-img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; background-color: black; display: block; }
 
 .placeholder-img { color: rgba(255,255,255,0.8); display: flex; justify-content: center; align-items: center; height: 100%; font-weight: bold; font-size: 1.1em; }
+
+/* CCTV overlays (LIVE badge, channel id, plate + status pill) */
+.live-badge {
+  position: absolute; top: 10px; left: 12px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(233, 84, 84, 0.18); color: #ff6b6b;
+  border: 1px solid rgba(233, 84, 84, 0.4);
+  padding: 3px 7px; border-radius: 4px;
+  font: 800 11px/1 ui-monospace, 'Menlo', monospace;
+  letter-spacing: 0.4px;
+}
+.live-dot-sm {
+  width: 6px; height: 6px; background: #e95454;
+  border-radius: 50%; display: inline-block;
+  animation: blink 1.2s infinite;
+}
+.cam-ch {
+  position: absolute; top: 10px; right: 12px; z-index: 2;
+  font: 700 12px/1.2 ui-monospace, 'Menlo', monospace;
+  color: #e5e7eb; text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+}
+.cam-overlay {
+  position: absolute; bottom: 12px; left: 12px; z-index: 2;
+  display: flex; gap: 8px; align-items: center;
+}
+.plate-badge {
+  background: #ffffff; color: #0d2b1f;
+  padding: 3px 10px; border-radius: 4px;
+  font-size: 13px; font-weight: 800;
+}
+.status-badge {
+  background: #000000; padding: 4px 12px;
+  font-size: 12px; font-weight: 800; border-radius: 5px;
+  line-height: 1.4;
+}
+.status-badge.normal { color: #9ddabd; }
+.status-badge.danger { color: #f7b7b7; }
 
 .status-section { flex: 4; display: flex; width: 100%; justify-content: center; min-height: 0; padding-bottom: 35px; margin-top: 5px;} 
 .status-split-container { display: flex; width: 100%; gap: 25px; max-width: 1300px; }
